@@ -2,6 +2,8 @@
 .env
 .env.local
 .env.*.local
+# 示例配置（不含敏感信息）
+!.env.example
 
 # Python 缓存
 __pycache__/
@@ -38,6 +40,9 @@ env/
 *.swp
 *.swo
 *~
+
+# PDF文档（包含敏感合规规则，勿提交）
+*.pdf
 
 # 向量数据库（本地持久化目录，勿提交）
 chroma_db/
