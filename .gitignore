@@ -40,6 +40,7 @@ env/
 *.swp
 *.swo
 *~
+*baiduyun*
 
 # PDF文档（包含敏感合规规则，勿提交）
 *.pdf
@@ -48,6 +49,9 @@ env/
 chroma_db/
 chroma/
 *.vectordb
+
+# 业务数据库（由init自动生成，勿提交）
+doc/rules.db
 
 # 日志
 *.log
