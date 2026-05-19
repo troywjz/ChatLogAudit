@@ -23,27 +23,28 @@ def run_tests():
     normals_correct = 0
     normals_total = 0
 
+    # 按类别统计
+    cat_stats = {}
+
     print(f"共 {total} 条测试用例\n")
 
-    for i, case in enumerate(cases, 1):
+    for case in cases:
+        cid = case["id"]
         msg = case["message"]
+        category = case["category"]
         expected_violation = case["is_violation"]
         expected_id = case.get("expected_rule_id")
-        tags = case.get("tags", [])
 
         result = check_message(msg)
         actual_violation = result["is_violation"]
 
-        # 判定是否/违规正确
         verdict_ok = actual_violation == expected_violation
 
-        # 违规类：进一步检查是否命中正确规则
         rule_ok = True
         if expected_violation and actual_violation and expected_id:
             hit_ids = [h["id"] for h in result["hits"]]
             rule_ok = expected_id in hit_ids
 
-        # 统计
         if verdict_ok:
             correct += 1
         if expected_violation:
@@ -55,9 +56,15 @@ def run_tests():
             if verdict_ok:
                 normals_correct += 1
 
+        # 按类别统计
+        if category not in cat_stats:
+            cat_stats[category] = {"total": 0, "correct": 0}
+        cat_stats[category]["total"] += 1
+        if verdict_ok:
+            cat_stats[category]["correct"] += 1
+
         # 输出
         status = "✓" if verdict_ok else "✗"
-        label = "违规" if expected_violation else "正常"
         detail = ""
         if expected_violation:
             if not actual_violation:
@@ -68,14 +75,19 @@ def run_tests():
                 detail = f"ID={expected_id} dist={result['hits'][0]['distance']}"
         else:
             if actual_violation:
-                detail = f"误判(最近ID={result['hits'][0]['id']} dist={result['hits'][0]['distance']})"
+                detail = f"误判(ID={result['hits'][0]['id']} dist={result['hits'][0]['distance']})"
 
-        print(f"  {status} #{i:02d} [{label}] \"{msg}\" → {detail}")
+        print(f"  {status} #{cid:02d} [{category}] {detail}")
+        print(f"       \"{msg[:40]}...\"" if len(msg) > 40 else f"       \"{msg}\"")
 
     print(f"\n{'='*50}")
     print(f"总准确率:  {correct}/{total} ({correct/total*100:.0f}%)")
     print(f"违规召回:  {violations_correct}/{violations_total} ({violations_correct/violations_total*100:.0f}%)")
     print(f"正常排除:  {normals_correct}/{normals_total} ({normals_correct/normals_total*100:.0f}%)")
+    print()
+    print("按类别:")
+    for cat, stats in cat_stats.items():
+        print(f"  {cat}: {stats['correct']}/{stats['total']} ({stats['correct']/stats['total']*100:.0f}%)")
 
 
 if __name__ == "__main__":

@@ -1,124 +1,222 @@
 [
   {
-    "message": "承诺包过保过",
+    "id": 1,
+    "message": "你放心报吧，我们这边包过的，历年通过率很高，报了基本都能过",
+    "category": "明确违规",
     "is_violation": true,
     "expected_rule_id": 35,
     "expected_level": "C类",
-    "tags": ["过度承诺", "极限词"]
+    "violation_type": "过度承诺",
+    "note": "使用「包过」极限词"
   },
   {
-    "message": "保证100%通过考试",
+    "id": 2,
+    "message": "这个考试100%能通过，我保证你一次过，不过我退你钱",
+    "category": "明确违规",
     "is_violation": true,
     "expected_rule_id": 35,
     "expected_level": "C类",
-    "tags": ["过度承诺", "极限词"]
+    "violation_type": "过度承诺",
+    "note": "100%保证通过+承诺退款"
   },
   {
-    "message": "100%保过，不过退款",
-    "is_violation": true,
-    "expected_rule_id": 35,
-    "expected_level": "C类",
-    "tags": ["过度承诺", "极限词"]
-  },
-  {
-    "message": "我们包就业，保底薪资8000",
-    "is_violation": true,
-    "expected_rule_id": 36,
-    "expected_level": "C类",
-    "tags": ["过度承诺", "就业"]
-  },
-  {
-    "message": "承诺用户随时可以退款",
-    "is_violation": true,
-    "expected_rule_id": 47,
-    "expected_level": "C类",
-    "tags": ["过度承诺", "退款"]
-  },
-  {
-    "message": "不想学直接退费，和淘宝一样7天无理由",
-    "is_violation": true,
-    "expected_rule_id": 47,
-    "expected_level": "C类",
-    "tags": ["过度承诺", "退款"]
-  },
-  {
-    "message": "我们是最大的平台，行业第一",
-    "is_violation": true,
-    "expected_rule_id": 43,
-    "expected_level": "C类",
-    "tags": ["过度承诺", "虚假宣传"]
-  },
-  {
-    "message": "私收学员学费，不走公司账户",
-    "is_violation": true,
-    "expected_rule_id": 6,
-    "expected_level": "A类",
-    "tags": ["损害公司利益", "私收"]
-  },
-  {
-    "message": "我帮你办理退费，你把钱转给我",
-    "is_violation": true,
-    "expected_rule_id": 20,
-    "expected_level": "A类",
-    "tags": ["损害公司利益", "退费"]
-  },
-  {
-    "message": "这个证书可以挂靠，一年能拿3万",
+    "id": 3,
+    "message": "考完试拿到证以后可以挂靠出去，一年挂靠费能有3到5万",
+    "category": "明确违规",
     "is_violation": true,
     "expected_rule_id": 39,
     "expected_level": "C类",
-    "tags": ["过度承诺", "挂靠"]
+    "violation_type": "过度承诺",
+    "note": "宣传挂靠收入"
   },
   {
-    "message": "不用学习，不用考试，直接拿证",
+    "id": 4,
+    "message": "你把钱直接转我微信就行，不用走公司，我给你优惠200块",
+    "category": "明确违规",
+    "is_violation": true,
+    "expected_rule_id": 6,
+    "expected_level": "A类",
+    "violation_type": "损害公司利益",
+    "note": "私收学费+不走公司渠道"
+  },
+  {
+    "id": 5,
+    "message": "不想学了随时可以退款，跟淘宝一样7天无理由退货，你不用担心",
+    "category": "明确违规",
+    "is_violation": true,
+    "expected_rule_id": 47,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "承诺随时退款+7天无理由"
+  },
+  {
+    "id": 6,
+    "message": "我们是对啊最大的平台，行业里第一的，其他家都是小作坊",
+    "category": "明确违规",
+    "is_violation": true,
+    "expected_rule_id": 43,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "宣称最大、第一"
+  },
+  {
+    "id": 7,
+    "message": "你帮我办理退费吧，不要走公司流程了，你直接转我，我帮你操作",
+    "category": "明确违规",
+    "is_violation": true,
+    "expected_rule_id": 20,
+    "expected_level": "A类",
+    "violation_type": "损害公司利益",
+    "note": "代为退费+绕过公司流程"
+  },
+  {
+    "id": 8,
+    "message": "不用学习不用考试，交了钱直接拿证，我们有渠道的",
+    "category": "明确违规",
     "is_violation": true,
     "expected_rule_id": 45,
     "expected_level": "C类",
-    "tags": ["过度承诺", "办假证"]
+    "violation_type": "过度承诺",
+    "note": "办假证承诺"
   },
   {
-    "message": "你好，请问有什么可以帮您的",
-    "is_violation": false,
-    "tags": ["正常问候"]
+    "id": 9,
+    "message": "我们这边包就业的，学完直接安排工作，保底薪资8000起",
+    "category": "明确违规",
+    "is_violation": true,
+    "expected_rule_id": 36,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "承诺包就业+保底薪资"
   },
   {
-    "message": "这个课程的价格是5800元",
-    "is_violation": false,
-    "tags": ["正常报价"]
+    "id": 10,
+    "message": "你不用还款的，考完试就不用还了，这个贷款我帮你处理",
+    "category": "明确违规",
+    "is_violation": true,
+    "expected_rule_id": 13,
+    "expected_level": "A类",
+    "violation_type": "损害公司利益",
+    "note": "承诺不用还款"
   },
   {
-    "message": "我们的老师都是专业认证的",
-    "is_violation": false,
-    "tags": ["正常介绍"]
+    "id": 11,
+    "message": "报了我们班基本都能过的，通过率挺高的，你正常跟着学就行",
+    "category": "模糊违规",
+    "is_violation": true,
+    "expected_rule_id": 35,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "暗示通过率高但未用极限词，边界上"
   },
   {
-    "message": "课程内容可以在APP上查看",
-    "is_violation": false,
-    "tags": ["正常指引"]
+    "id": 12,
+    "message": "这个证考出来以后很值钱的，好多单位都抢着要",
+    "category": "模糊违规",
+    "is_violation": true,
+    "expected_rule_id": 39,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "暗示证书价值但未直接承诺挂靠"
   },
   {
-    "message": "报名后会有班主任跟进学习进度",
-    "is_violation": false,
-    "tags": ["正常服务"]
+    "id": 13,
+    "message": "我们平台规模很大的，业内口碑很好，你放心选我们",
+    "category": "模糊违规",
+    "is_violation": true,
+    "expected_rule_id": 43,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "暗示规模大但未说最大/第一"
   },
   {
-    "message": "正规课程服务，欢迎咨询",
-    "is_violation": false,
-    "tags": ["正常宣传"]
+    "id": 14,
+    "message": "你要是不想学了可以跟教务说，他们会帮你处理的",
+    "category": "模糊违规",
+    "is_violation": true,
+    "expected_rule_id": 47,
+    "expected_level": "C类",
+    "violation_type": "过度承诺",
+    "note": "暗示可以退费但说法比较模糊"
   },
   {
-    "message": "学习进度可以在APP查看，有问题随时联系我",
+    "id": 15,
+    "message": "咱们这边的课程通过率你可以参考历年数据，大概在正常范围内",
+    "category": "边界-未违规",
     "is_violation": false,
-    "tags": ["正常服务"]
+    "violation_type": null,
+    "note": "引导看客观数据而非承诺，合规"
   },
   {
-    "message": "考试通过率怎么样",
+    "id": 16,
+    "message": "课程价格是5800元，这是公司统一标价，你可以去官网核实",
+    "category": "边界-未违规",
     "is_violation": false,
-    "tags": ["正常咨询"]
+    "violation_type": null,
+    "note": "正常报价+引导核实，合规"
   },
   {
-    "message": "这个班多少钱",
+    "id": 17,
+    "message": "我们老师都是正规编制的，你可以去官网查看老师资质介绍",
+    "category": "边界-未违规",
     "is_violation": false,
-    "tags": ["正常咨询"]
+    "violation_type": null,
+    "note": "介绍师资+引导核实，合规"
+  },
+  {
+    "id": 18,
+    "message": "如果后续有什么问题可以随时联系我，我帮你对接教务处理",
+    "category": "边界-未违规",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "说随时联系但不是承诺随时退款"
+  },
+  {
+    "id": 19,
+    "message": "你好，我是你的专属课程规划师，关于课程有什么想了解的都可以问我",
+    "category": "正常",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "标准开场白"
+  },
+  {
+    "id": 20,
+    "message": "这个班的课程内容包含基础模块和冲刺模块，报名后班主任会跟进你的学习进度",
+    "category": "正常",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "正常课程介绍"
+  },
+  {
+    "id": 21,
+    "message": "课程学习周期是3个月，每天大概需要1-2小时的学习时间",
+    "category": "正常",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "正常学习安排介绍"
+  },
+  {
+    "id": 22,
+    "message": "付款的话你可以走官网或者天猫旗舰店，都支持分期",
+    "category": "正常",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "正常引导官方渠道付款"
+  },
+  {
+    "id": 23,
+    "message": "你觉得这个班型不太适合的话，也可以看看我们其他课程，我帮你推荐",
+    "category": "正常",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "正常推荐"
+  },
+  {
+    "id": 24,
+    "message": "报名流程很简单，你在APP上操作就行，有问题随时问我",
+    "category": "正常",
+    "is_violation": false,
+    "violation_type": null,
+    "note": "正常引导报名"
   }
 ]

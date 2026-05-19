@@ -151,8 +151,8 @@ def check_message(message: str) -> dict:
         emb_dist = emb.get("emb_distance", 2.0)
         kw_score = kw.get("keyword_score", 0.0)
 
-        # 关键词加分：最多减0.3的距离
-        combined_dist = max(0.0, emb_dist - kw_score * 0.3)
+        # 关键词加分：最多减0.25的距离
+        combined_dist = max(0.0, emb_dist - kw_score * 0.25)
 
         item = {
             "id": rule_id,
@@ -170,13 +170,14 @@ def check_message(message: str) -> dict:
         combined.append(item)
 
     # 关键词独有命中（embedding未召回）的补充
+    # 门槛高+虚拟距离高，避免通用词触发误判
     for rule_id, kw in kw_hits.items():
         if rule_id in emb_hits:
             continue
         overlap_count = len(kw.get("overlap_words", []))
         kw_score = kw.get("keyword_score", 0.0)
         if overlap_count >= 3 and kw_score >= 0.9:
-            combined_dist = 0.3  # 高置信关键词匹配给一个较低距离
+            combined_dist = 0.55  # 虚拟距离，仅略低于阈值
         else:
             continue
 
