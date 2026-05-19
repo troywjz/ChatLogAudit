@@ -7,7 +7,6 @@
 import argparse
 import json
 import os
-import re
 import sqlite3
 import sys
 from langchain_openai import OpenAIEmbeddings
@@ -28,19 +27,18 @@ STOP_WORDS = {"的", "了", "是", "在", "我", "你", "他", "她", "它", "�
 
 
 def _tokenize(text: str) -> set[str]:
-    """中文关键词提取：连续中文片段取完整词+2-gram，英文/数字整体保留"""
+    """中文分词（jieba）+ 英文/数字提取"""
+    import jieba
     tokens = set()
-    for m in re.finditer(r'[\u4e00-\u9fff]{2,}', text):
-        word = m.group()
-        tokens.add(word)
-        if len(word) >= 3:
-            for i in range(len(word) - 1):
-                gram = word[i:i + 2]
-                if gram not in STOP_WORDS:
-                    tokens.add(gram)
-    for m in re.finditer(r'[a-zA-Z0-9%]+', text):
-        tokens.add(m.group().lower())
-    return {t for t in tokens if t not in STOP_WORDS}
+    for word in jieba.cut(text):
+        word = word.strip()
+        if not word or word in STOP_WORDS:
+            continue
+        # 过滤单字（区分度太低）和纯标点
+        if len(word) == 1 and not word.isalnum():
+            continue
+        tokens.add(word.lower() if word.isascii() else word)
+    return tokens
 
 
 def _keyword_search(message: str) -> list[dict]:

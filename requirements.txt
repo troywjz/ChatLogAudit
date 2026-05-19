@@ -7,6 +7,7 @@ langchain-text-splitters>=1.0.0
 chromadb==1.0.20
 pypdf>=4.2.0
 python-dotenv>=1.0.0
+jieba>=0.42.1
 
 # PDF图片处理
 PyMuPDF>=1.24.0
