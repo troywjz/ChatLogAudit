@@ -1,0 +1,124 @@
+[
+  {
+    "message": "承诺包过保过",
+    "is_violation": true,
+    "expected_rule_id": 35,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "极限词"]
+  },
+  {
+    "message": "保证100%通过考试",
+    "is_violation": true,
+    "expected_rule_id": 35,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "极限词"]
+  },
+  {
+    "message": "100%保过，不过退款",
+    "is_violation": true,
+    "expected_rule_id": 35,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "极限词"]
+  },
+  {
+    "message": "我们包就业，保底薪资8000",
+    "is_violation": true,
+    "expected_rule_id": 36,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "就业"]
+  },
+  {
+    "message": "承诺用户随时可以退款",
+    "is_violation": true,
+    "expected_rule_id": 47,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "退款"]
+  },
+  {
+    "message": "不想学直接退费，和淘宝一样7天无理由",
+    "is_violation": true,
+    "expected_rule_id": 47,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "退款"]
+  },
+  {
+    "message": "我们是最大的平台，行业第一",
+    "is_violation": true,
+    "expected_rule_id": 43,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "虚假宣传"]
+  },
+  {
+    "message": "私收学员学费，不走公司账户",
+    "is_violation": true,
+    "expected_rule_id": 6,
+    "expected_level": "A类",
+    "tags": ["损害公司利益", "私收"]
+  },
+  {
+    "message": "我帮你办理退费，你把钱转给我",
+    "is_violation": true,
+    "expected_rule_id": 20,
+    "expected_level": "A类",
+    "tags": ["损害公司利益", "退费"]
+  },
+  {
+    "message": "这个证书可以挂靠，一年能拿3万",
+    "is_violation": true,
+    "expected_rule_id": 39,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "挂靠"]
+  },
+  {
+    "message": "不用学习，不用考试，直接拿证",
+    "is_violation": true,
+    "expected_rule_id": 45,
+    "expected_level": "C类",
+    "tags": ["过度承诺", "办假证"]
+  },
+  {
+    "message": "你好，请问有什么可以帮您的",
+    "is_violation": false,
+    "tags": ["正常问候"]
+  },
+  {
+    "message": "这个课程的价格是5800元",
+    "is_violation": false,
+    "tags": ["正常报价"]
+  },
+  {
+    "message": "我们的老师都是专业认证的",
+    "is_violation": false,
+    "tags": ["正常介绍"]
+  },
+  {
+    "message": "课程内容可以在APP上查看",
+    "is_violation": false,
+    "tags": ["正常指引"]
+  },
+  {
+    "message": "报名后会有班主任跟进学习进度",
+    "is_violation": false,
+    "tags": ["正常服务"]
+  },
+  {
+    "message": "正规课程服务，欢迎咨询",
+    "is_violation": false,
+    "tags": ["正常宣传"]
+  },
+  {
+    "message": "学习进度可以在APP查看，有问题随时联系我",
+    "is_violation": false,
+    "tags": ["正常服务"]
+  },
+  {
+    "message": "考试通过率怎么样",
+    "is_violation": false,
+    "tags": ["正常咨询"]
+  },
+  {
+    "message": "这个班多少钱",
+    "is_violation": false,
+    "tags": ["正常咨询"]
+  }
+]
