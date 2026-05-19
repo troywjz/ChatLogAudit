@@ -18,7 +18,7 @@ EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
 VLM_MODEL = os.getenv("VLM_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
 
 # 检测参数
-SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.25"))
+SIMILARITY_THRESHOLD = float(os.getenv("SIMILARITY_THRESHOLD", "0.45"))
 TOP_K = int(os.getenv("TOP_K", "3"))
 PERSIST_DIR = "chroma_db"
 

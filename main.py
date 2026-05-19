@@ -29,17 +29,18 @@ STOP_WORDS = {"的", "了", "是", "在", "我", "你", "他", "她", "它", "�
 
 
 def _tokenize(text: str) -> set[str]:
-    """简易中文分词：提取连续中文字符和英文/数字片段"""
+    """提取有区分度的关键词（完整词+2-gram组合）"""
     tokens = set()
-    # 提取连续中文片段（2字以上）
+    # 提取连续中文片段
     for m in re.finditer(r'[\u4e00-\u9fff]{2,}', text):
         word = m.group()
-        # 2-gram 切分
-        for i in range(len(word) - 1):
-            tokens.add(word[i:i + 2])
-        # 整个词也加入
-        if len(word) >= 2:
-            tokens.add(word)
+        tokens.add(word)
+        # 2字以上都切2-gram，用于部分匹配
+        if len(word) >= 3:
+            for i in range(len(word) - 1):
+                gram = word[i:i + 2]
+                if gram not in STOP_WORDS:
+                    tokens.add(gram)
     # 提取英文+数字片段
     for m in re.finditer(r'[a-zA-Z0-9%]+', text):
         tokens.add(m.group().lower())
@@ -62,21 +63,45 @@ def _keyword_search(message: str) -> list[dict]:
     rows = c.execute(
         'SELECT rule_id, level, category1, category2, standard, violation, penalty FROM rules ORDER BY rule_id'
     ).fetchall()
-    conn.close()
 
-    results = []
+    # 统计每个token在所有规则中出现的频率，过滤高频通用词
+    token_doc_count = {}
+    all_rule_tokens = []
     for row in rows:
         rule_id, level, cat1, cat2, standard, violation, penalty = row
-        # 合并所有文本用于关键词匹配
-        full_text = f"{standard or ''} {violation or ''}"
-        doc_tokens = _tokenize(full_text)
+        doc_tokens = _tokenize(violation or "")
+        all_rule_tokens.append((row, doc_tokens))
+        for t in doc_tokens:
+            token_doc_count[t] = token_doc_count.get(t, 0) + 1
 
-        # 计算关键词重叠率
-        overlap = query_tokens & doc_tokens
+    conn.close()
+
+    # 高频词阈值：在超过30%的规则中都出现的词视为通用词
+    total_rules = len(rows)
+    high_freq_threshold = total_rules * 0.3
+    high_freq_words = {t for t, cnt in token_doc_count.items() if cnt > high_freq_threshold}
+
+    # 从查询词中移除高频通用词
+    filtered_query = query_tokens - high_freq_words
+    if not filtered_query:
+        return []
+
+    results = []
+    for row, doc_tokens in all_rule_tokens:
+        rule_id, level, cat1, cat2, standard, violation, penalty = row
+
+        # 只匹配违规描述中的非高频词
+        filtered_doc = doc_tokens - high_freq_words
+        overlap = filtered_query & filtered_doc
         if not overlap:
             continue
 
-        # 按匹配词数量计分（1词=0.3, 2词=0.6, 3+词=1.0），避免噪声词稀释
+        # 按匹配词数量计分（1词=0.3, 2词=0.6, 3+词=1.0）
+        score = min(1.0, len(overlap) * 0.3)
+        if score < 0.15:
+            continue
+
+        # 按匹配词数量计分（1词=0.3, 2词=0.6, 3+词=1.0）
         score = min(1.0, len(overlap) * 0.3)
         if score < 0.15:
             continue
@@ -165,49 +190,63 @@ def check_message(message: str) -> dict:
         kw_hits[r["id"]] = r
 
     # ── 阶段3：合并去重 + 综合评分 ──────────────────────
-    all_ids = set(emb_hits.keys()) | set(kw_hits.keys())
+    # 关键词匹配仅用于给embedding结果加分，不独立作为判定依据
     combined = []
 
-    for rule_id in all_ids:
-        emb = emb_hits.get(rule_id, {})
+    # 3a. 处理embedding召回的结果
+    for rule_id, emb in emb_hits.items():
         kw = kw_hits.get(rule_id, {})
-
         emb_score = emb.get("embedding_score", 0.0)
         kw_score = kw.get("keyword_score", 0.0)
-        overlap_count = len(kw.get("overlap_words", []))
 
-        # 综合评分策略：
-        # - embedding+keyword 双命中：取max × 1.1（双重确认加分）
-        # - 仅keyword命中：需至少2个关键词重叠才采信（防误判）
-        # - 仅embedding命中：直接使用embedding分数
+        # embedding + 关键词双命中：加分
         if emb_score > 0 and kw_score > 0:
-            combined_score = max(emb_score, kw_score) * 1.1
-        elif kw_score > 0 and overlap_count >= 2:
-            combined_score = kw_score
+            combined_score = min(1.0, emb_score + kw_score * 0.3)
         elif emb_score > 0:
             combined_score = emb_score
         else:
-            continue  # 仅1个关键词匹配且无embedding支持，跳过
+            continue
 
-        combined_score = min(1.0, combined_score)
-
-        # 优先用embedding的结构化数据（更完整），否则用keyword的
-        base = emb if emb else kw
         item = {
             "id": rule_id,
-            "level": base.get("level", ""),
-            "category": base.get("category", ""),
-            "standard": base.get("standard", ""),
-            "violation": base.get("violation", ""),
-            "penalty": base.get("penalty", ""),
+            "level": emb.get("level", ""),
+            "category": emb.get("category", ""),
+            "standard": emb.get("standard", ""),
+            "violation": emb.get("violation", ""),
+            "penalty": emb.get("penalty", ""),
             "similarity": round(combined_score, 4),
             "embedding_score": round(emb_score, 4),
             "keyword_score": round(kw_score, 4),
         }
-
         if kw.get("overlap_words"):
             item["matched_keywords"] = kw["overlap_words"]
+        combined.append(item)
 
+    # 3b. 关键词独有命中（embedding未召回）的补充召回
+    for rule_id, kw in kw_hits.items():
+        if rule_id in emb_hits:
+            continue
+        overlap_count = len(kw.get("overlap_words", []))
+        kw_score = kw.get("keyword_score", 0.0)
+        # 门槛：至少3个关键词重叠且高分，才作为补充召回
+        if overlap_count >= 3 and kw_score >= 0.9:
+            combined_score = kw_score * 0.7  # 降权
+        else:
+            continue
+
+        item = {
+            "id": rule_id,
+            "level": kw.get("level", ""),
+            "category": kw.get("category", ""),
+            "standard": kw.get("standard", ""),
+            "violation": kw.get("violation", ""),
+            "penalty": kw.get("penalty", ""),
+            "similarity": round(combined_score, 4),
+            "embedding_score": 0.0,
+            "keyword_score": round(kw_score, 4),
+        }
+        if kw.get("overlap_words"):
+            item["matched_keywords"] = kw["overlap_words"]
         combined.append(item)
 
     # 按综合得分降序排列
