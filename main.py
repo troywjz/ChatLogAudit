@@ -20,31 +20,17 @@ from config import (
 )
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc", "rules.db")
+CONFIG_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc", "config.db")
 
-# 通用业务词排除表：这些词虽然只出现在少数规则中，
-# 但在正常合规话术中也经常使用，不能作为违规触发词
-# 此表比触发词表小得多且稳定，新增规则时极少需要更新
-NON_TRIGGER_WORDS = {
-    # 正常销售流程中常见词
-    "课程", "价格", "报名", "学员", "老师", "退款", "退费",
-    "官网", "天猫", "京东", "支付", "付款", "优惠",
-    "联系", "咨询", "介绍", "处理", "操作", "流程",
-    "核实", "查看", "了解", "推荐", "规划", "班级",
-    "学习", "考试", "通过", "证书", "教材", "视频",
-    # 合规描述中常见的通用词
-    "统一", "标准", "正规", "编制", "范围", "时间",
-    "系统", "及时", "录入", "透明", "理解", "介绍",
-    "正常", "实际", "信息", "使用", "个人", "方式",
-    "渠道", "权限", "告知", "利益", "应该", "规则",
-    "包含", "不得", "条件", "工作", "安排", "宣传",
-    "方法", "合规", "满足", "报名费", "硕士", "考研",
-    "交学费", "海外", "一样", "淘宝", "理由", "良好",
-    "尊重", "体验", "规定", "管理", "问题", "部门",
-    "同事", "录音", "截图", "电话", "新", "前",
-    # 正常话术中高频使用的通用词
-    "随时", "分期", "或者", "内容", "需要", "小时",
-    "你的", "规划师", "通过率", "报名后",
-}
+
+def _load_non_trigger_words() -> set[str]:
+    """从config.db加载排除词表"""
+    if not os.path.exists(CONFIG_DB_PATH):
+        return set()
+    conn = sqlite3.connect(CONFIG_DB_PATH)
+    rows = conn.execute('SELECT word FROM non_trigger_words').fetchall()
+    conn.close()
+    return {r[0] for r in rows}
 
 
 def _build_trigger_dict() -> dict[str, list[int]]:
@@ -94,11 +80,12 @@ def _build_trigger_dict() -> dict[str, list[int]]:
                     phrase_to_rules[seg].add(rule_id)
 
     # 过滤生成触发词字典
+    non_trigger_words = _load_non_trigger_words()
     triggers: dict[str, list[int]] = {}
     for phrase, rule_ids in phrase_to_rules.items():
         if len(rule_ids) > 2:
             continue
-        if phrase in NON_TRIGGER_WORDS:
+        if phrase in non_trigger_words:
             continue
         if phrase.isdigit() or len(phrase) < 2:
             continue
