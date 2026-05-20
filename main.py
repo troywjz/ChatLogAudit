@@ -7,6 +7,7 @@
 import argparse
 import json
 import os
+import re
 import sqlite3
 import sys
 from langchain_openai import OpenAIEmbeddings
@@ -20,57 +21,103 @@ from config import (
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc", "rules.db")
 
-# 违规触发词字典：仅收录在销售话术中几乎必定表示违规的词/短语
-# 键=触发词，值=最相关的规则ID（可多条）
-VIOLATION_TRIGGERS: dict[str, list[int]] = {
-    # C类-过度承诺
-    "包过": [36], "100%": [36], "保底": [36, 37], "保证通过": [36],
-    "一次过": [36], "直接发证": [36], "肯定能过": [36],
-    "挂靠": [40], "挂靠费": [40],
-    "包就业": [37], "安排工作": [37], "保底薪资": [37],
-    "办假证": [45], "不用考试": [46], "不用学习": [46],
-    "随时退款": [48], "7天无理由": [48], "不想学直接退": [48],
-    "最大": [44], "第一": [44], "唯一": [44], "首家": [44],
-    "虚假宣传": [44],
-    # A类-损害公司利益
-    "私收": [6], "私自收费": [6], "直接转我": [6],
-    "不用还": [13], "不用还款": [13], "免还款": [13],
-    "代退费": [20], "帮你退": [20], "帮你操作": [20],
-    "不走公司": [6, 20], "绕过公司": [6, 20],
+# 通用业务词排除表：这些词虽然只出现在少数规则中，
+# 但在正常合规话术中也经常使用，不能作为违规触发词
+# 此表比触发词表小得多且稳定，新增规则时极少需要更新
+NON_TRIGGER_WORDS = {
+    # 正常销售流程中常见词
+    "课程", "价格", "报名", "学员", "老师", "退款", "退费",
+    "官网", "天猫", "京东", "支付", "付款", "优惠",
+    "联系", "咨询", "介绍", "处理", "操作", "流程",
+    "核实", "查看", "了解", "推荐", "规划", "班级",
+    "学习", "考试", "通过", "证书", "教材", "视频",
+    # 合规描述中常见的通用词
+    "统一", "标准", "正规", "编制", "范围", "时间",
+    "系统", "及时", "录入", "透明", "理解", "介绍",
+    "正常", "实际", "信息", "使用", "个人", "方式",
+    "渠道", "权限", "告知", "利益", "应该", "规则",
+    "包含", "不得", "条件", "工作", "安排", "宣传",
+    "方法", "合规", "满足", "报名费", "硕士", "考研",
+    "交学费", "海外", "一样", "淘宝", "理由", "良好",
+    "尊重", "体验", "规定", "管理", "问题", "部门",
+    "同事", "录音", "截图", "电话", "新", "前",
+    # 正常话术中高频使用的通用词
+    "随时", "分期", "或者", "内容", "需要", "小时",
+    "你的", "规划师", "通过率", "报名后",
 }
 
-STOP_WORDS = {"的", "了", "是", "在", "我", "你", "他", "她", "它", "们",
-              "这", "那", "有", "和", "与", "或", "不", "也", "都", "就",
-              "要", "会", "能", "可以", "可", "把", "被", "让", "给",
-              "到", "着", "过", "来", "去", "上", "下", "中", "里", "外"}
 
+def _build_trigger_dict() -> dict[str, list[int]]:
+    """从rules.db自动生成违规触发词字典
 
-def _tokenize(text: str) -> set[str]:
-    """中文分词（jieba）+ 英文/数字提取"""
+    从每条规则的violation文本中：
+    1. 用jieba分词提取完整词语（避免跨词边界的噪声子串）
+    2. 用标点分句提取2-8字完整短句片段（捕获"不用考试""7天无理由"等多字短语）
+
+    保留仅出现在≤2条规则中且不在排除表中的词/短语作为触发词。
+    规则库更新后自动生效，无需手动维护触发词。
+    """
+    if not os.path.exists(DB_PATH):
+        return {}
+
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute(
+        'SELECT rule_id, violation FROM rules'
+    ).fetchall()
+    conn.close()
+
     import jieba
-    tokens = set()
-    for word in jieba.cut(text):
-        word = word.strip()
-        if not word or word in STOP_WORDS:
+    phrase_to_rules: dict[str, set[int]] = {}
+
+    for rule_id, violation in rows:
+        if not violation:
             continue
-        if len(word) == 1 and not word.isalnum():
+
+        # 来源1：jieba分词（2字以上的完整词）
+        for word in jieba.cut(violation):
+            word = word.strip()
+            if len(word) >= 2 and not word.isspace():
+                if word not in phrase_to_rules:
+                    phrase_to_rules[word] = set()
+                phrase_to_rules[word].add(rule_id)
+
+        # 来源2：标点分句片段（2-8字的完整语义段）
+        clauses = re.split(r'[，。；、：\s①②③④⑤⑥⑦⑧⑨⑩（）\(\)]+', violation)
+        for clause in clauses:
+            clause = clause.strip()
+            if 2 <= len(clause) <= 8:
+                # 提取连续中文字符+数字+字母的段
+                seg = re.sub(r'[^\u4e00-\u9fff0-9a-zA-Z%]', '', clause)
+                if 2 <= len(seg) <= 8 and seg not in phrase_to_rules:
+                    if seg not in phrase_to_rules:
+                        phrase_to_rules[seg] = set()
+                    phrase_to_rules[seg].add(rule_id)
+
+    # 过滤生成触发词字典
+    triggers: dict[str, list[int]] = {}
+    for phrase, rule_ids in phrase_to_rules.items():
+        if len(rule_ids) > 2:
             continue
-        tokens.add(word.lower() if word.isascii() else word)
-    return tokens
+        if phrase in NON_TRIGGER_WORDS:
+            continue
+        if phrase.isdigit() or len(phrase) < 2:
+            continue
+        triggers[phrase] = sorted(rule_ids)
+
+    return triggers
 
 
 def _find_trigger_matches(message: str) -> list[dict]:
     """查找违规触发词匹配
 
-    使用人工审核的触发词字典，匹配销售话术中几乎必定表示违规的词/短语。
-    这些词在正常合规话术中不会出现，因此匹配即可确信违规。
+    从rules.db自动生成触发词字典，对用户消息做子串匹配。
+    匹配到的词在正常合规话术中几乎不会出现，因此可确信违规。
     """
-    if not os.path.exists(DB_PATH):
-        return []
+    triggers = _build_trigger_dict()
 
     # 收集所有命中的触发词及对应规则ID
-    triggered_rules = {}  # rule_id → [matched_words]
-    for trigger, rule_ids in VIOLATION_TRIGGERS.items():
+    triggered_rules: dict[int, list[str]] = {}
+    for trigger, rule_ids in triggers.items():
         if trigger in message:
             for rid in rule_ids:
                 if rid not in triggered_rules:
@@ -108,14 +155,14 @@ def _find_trigger_matches(message: str) -> list[dict]:
 
 def check_message(message: str) -> dict:
     """
-    检测销售话术是否违规（Embedding距离 + 超特异性关键词匹配）
+    检测销售话术是否违规（Embedding距离 + 违规触发词匹配）
 
     距离(distance)：Chroma cosine distance，范围[0,2]，0=完全相同，越大越不相关
     阈值(threshold)：距离≤阈值时判定命中
 
     评分策略：
     1. Embedding距离≤阈值：语义命中
-    2. 超特异性关键词匹配（如"包过""挂靠"仅出现在1条规则中）：精准补充
+    2. 违规触发词匹配（从rules.db自动生成）：精准补充
     """
     # ── 阶段1：Embedding检索 ──────────────────────────────
     embeddings = OpenAIEmbeddings(
@@ -159,7 +206,6 @@ def check_message(message: str) -> dict:
     # ── 阶段2：违规触发词匹配 ──────────────────────────────
     kw_matches = _find_trigger_matches(message)
 
-    # 关键词命中：如果embedding已召回同规则，跳过（避免重复）
     emb_rule_ids = {h["id"] for h in emb_hits}
     kw_supplement = []
     for kw in kw_matches:
@@ -171,7 +217,7 @@ def check_message(message: str) -> dict:
                 "standard": kw["standard"],
                 "violation": kw["violation"],
                 "penalty": kw["penalty"],
-                "distance": DISTANCE_THRESHOLD,  # 虚拟距离=阈值
+                "distance": DISTANCE_THRESHOLD,
                 "emb_distance": None,
                 "keyword_score": 1.0,
                 "hit_type": "触发词命中",
@@ -179,7 +225,6 @@ def check_message(message: str) -> dict:
             })
 
     # ── 阶段3：合并 + 筛选 ───────────────────────────────
-    # 对embedding命中：如果有同规则的触发词命中，标注
     for hit in emb_hits:
         for kw in kw_matches:
             if hit["id"] == kw["id"]:
