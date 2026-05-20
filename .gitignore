@@ -52,6 +52,7 @@ chroma/
 
 # 业务数据库（由init自动生成，勿提交）
 doc/rules.db
+doc/config.db
 
 # 日志
 *.log
