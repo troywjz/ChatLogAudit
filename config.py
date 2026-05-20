@@ -13,13 +13,14 @@ if sys.platform == "win32":
 BASE_URL = os.getenv("BASE_URL")
 API_KEY = os.getenv("API_KEY")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
+EMBEDDING_DIMENSIONS = int(os.getenv("EMBEDDING_DIMENSIONS", "1024"))
 
 # VLM 视觉模型配置（用于 PDF 表格识图）
 VLM_MODEL = os.getenv("VLM_MODEL", "Qwen/Qwen3-VL-8B-Instruct")
 
 # 检测参数
 # DISTANCE_THRESHOLD: cosine distance阈值，≤此值判定命中。0=完全相同，越大越不相关
-DISTANCE_THRESHOLD = float(os.getenv("DISTANCE_THRESHOLD", "0.45"))
+DISTANCE_THRESHOLD = float(os.getenv("DISTANCE_THRESHOLD", "0.55"))
 TOP_K = int(os.getenv("TOP_K", "3"))
 PERSIST_DIR = "chroma_db"
 

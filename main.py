@@ -13,12 +13,31 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 
 from config import (
-    BASE_URL, API_KEY, EMBEDDING_MODEL,
+    BASE_URL, API_KEY, EMBEDDING_MODEL, EMBEDDING_DIMENSIONS,
     DISTANCE_THRESHOLD, TOP_K, PERSIST_DIR,
     validate_config,
 )
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "doc", "rules.db")
+
+# 违规触发词字典：仅收录在销售话术中几乎必定表示违规的词/短语
+# 键=触发词，值=最相关的规则ID（可多条）
+VIOLATION_TRIGGERS: dict[str, list[int]] = {
+    # C类-过度承诺
+    "包过": [36], "100%": [36], "保底": [36, 37], "保证通过": [36],
+    "一次过": [36], "直接发证": [36], "肯定能过": [36],
+    "挂靠": [40], "挂靠费": [40],
+    "包就业": [37], "安排工作": [37], "保底薪资": [37],
+    "办假证": [45], "不用考试": [46], "不用学习": [46],
+    "随时退款": [48], "7天无理由": [48], "不想学直接退": [48],
+    "最大": [44], "第一": [44], "唯一": [44], "首家": [44],
+    "虚假宣传": [44],
+    # A类-损害公司利益
+    "私收": [6], "私自收费": [6], "直接转我": [6],
+    "不用还": [13], "不用还款": [13], "免还款": [13],
+    "代退费": [20], "帮你退": [20], "帮你操作": [20],
+    "不走公司": [6, 20], "绕过公司": [6, 20],
+}
 
 STOP_WORDS = {"的", "了", "是", "在", "我", "你", "他", "她", "它", "们",
               "这", "那", "有", "和", "与", "或", "不", "也", "都", "就",
@@ -34,77 +53,74 @@ def _tokenize(text: str) -> set[str]:
         word = word.strip()
         if not word or word in STOP_WORDS:
             continue
-        # 过滤单字（区分度太低）和纯标点
         if len(word) == 1 and not word.isalnum():
             continue
         tokens.add(word.lower() if word.isascii() else word)
     return tokens
 
 
-def _keyword_search(message: str) -> list[dict]:
-    """从rules.db中查找与输入话术有词汇重叠的规则"""
+def _find_trigger_matches(message: str) -> list[dict]:
+    """查找违规触发词匹配
+
+    使用人工审核的触发词字典，匹配销售话术中几乎必定表示违规的词/短语。
+    这些词在正常合规话术中不会出现，因此匹配即可确信违规。
+    """
     if not os.path.exists(DB_PATH):
         return []
 
-    query_tokens = _tokenize(message)
-    if not query_tokens:
+    # 收集所有命中的触发词及对应规则ID
+    triggered_rules = {}  # rule_id → [matched_words]
+    for trigger, rule_ids in VIOLATION_TRIGGERS.items():
+        if trigger in message:
+            for rid in rule_ids:
+                if rid not in triggered_rules:
+                    triggered_rules[rid] = []
+                triggered_rules[rid].append(trigger)
+
+    if not triggered_rules:
         return []
 
+    # 查询规则详情
     conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    rows = c.execute(
-        'SELECT rule_id, level, category1, category2, standard, violation, penalty FROM rules ORDER BY rule_id'
-    ).fetchall()
-
-    # 统计词频，过滤在>30%规则中都出现的高频通用词
-    token_doc_count = {}
-    all_rule_tokens = []
-    for row in rows:
-        doc_tokens = _tokenize(row[5] or "")
-        all_rule_tokens.append((row, doc_tokens))
-        for t in doc_tokens:
-            token_doc_count[t] = token_doc_count.get(t, 0) + 1
+    results = []
+    for rid, words in triggered_rules.items():
+        row = conn.execute(
+            'SELECT level, category1, category2, standard, violation FROM rules WHERE rule_id=?',
+            (rid,)
+        ).fetchone()
+        if not row:
+            continue
+        level, cat1, cat2, standard, violation = row
+        category = " ".join(str(p) for p in [level, cat1, cat2] if p) or "未分类"
+        results.append({
+            "id": rid,
+            "level": str(level or ""),
+            "category": category,
+            "standard": str(standard or ""),
+            "violation": str(violation or ""),
+            "penalty": "",
+            "matched_words": words,
+        })
     conn.close()
 
-    high_freq = {t for t, cnt in token_doc_count.items() if cnt > len(rows) * 0.3}
-    filtered_query = query_tokens - high_freq
-    if not filtered_query:
-        return []
-
-    results = []
-    for row, doc_tokens in all_rule_tokens:
-        rule_id, level, cat1, cat2, standard, violation, penalty = row
-        overlap = filtered_query & (doc_tokens - high_freq)
-        if not overlap:
-            continue
-
-        score = min(1.0, len(overlap) * 0.3)
-        category = " ".join(p for p in [level, cat1, cat2] if p) or "未分类"
-        results.append({
-            "id": rule_id,
-            "level": level or "",
-            "category": category,
-            "standard": standard or "",
-            "violation": violation or "",
-            "penalty": penalty or "",
-            "keyword_score": round(score, 4),
-            "overlap_words": sorted(overlap),
-        })
-
-    results.sort(key=lambda x: x["keyword_score"], reverse=True)
-    return results[:TOP_K]
+    return results
 
 
 def check_message(message: str) -> dict:
     """
-    检测销售话术是否违规（Embedding距离 + 关键词匹配）
+    检测销售话术是否违规（Embedding距离 + 超特异性关键词匹配）
 
-    距离(distanee)：Chroma cosine distance，范围[0,2]，0=完全相同，越大越不相关
-    阈值(threshold)：距离≤阈值时判定命中，默认0.55（越小越严格）
+    距离(distance)：Chroma cosine distance，范围[0,2]，0=完全相同，越大越不相关
+    阈值(threshold)：距离≤阈值时判定命中
+
+    评分策略：
+    1. Embedding距离≤阈值：语义命中
+    2. 超特异性关键词匹配（如"包过""挂靠"仅出现在1条规则中）：精准补充
     """
     # ── 阶段1：Embedding检索 ──────────────────────────────
     embeddings = OpenAIEmbeddings(
-        model=EMBEDDING_MODEL, api_key=API_KEY, base_url=BASE_URL
+        model=EMBEDDING_MODEL, dimensions=EMBEDDING_DIMENSIONS,
+        api_key=API_KEY, base_url=BASE_URL
     )
 
     import time
@@ -120,86 +136,62 @@ def check_message(message: str) -> dict:
                 print("[错误] 向量数据库连接失败，请稍后重试")
                 sys.exit(1)
 
-    emb_results = db.similarity_search_with_score(message, k=TOP_K)
+    query = f"检索与销售话术违规相关的规则：{message}"
+    emb_results = db.similarity_search_with_score(query, k=TOP_K)
 
-    # Chroma返回cosine distance：越小越相似，0=完全相同
-    emb_hits = {}
+    emb_hits = []
     for doc, distance in emb_results:
         distance = max(0.0, distance)
         rule_id = doc.metadata.get("id", 0)
-        emb_hits[rule_id] = {
+        emb_hits.append({
             "id": rule_id,
             "level": doc.metadata.get("level", ""),
             "category": doc.metadata.get("category", ""),
             "standard": doc.metadata.get("standard", ""),
             "violation": doc.page_content,
             "penalty": doc.metadata.get("penalty", ""),
+            "distance": round(distance, 4),
             "emb_distance": round(distance, 4),
             "keyword_score": 0.0,
-        }
+            "hit_type": "语义匹配",
+        })
 
-    # ── 阶段2：关键词匹配 ─────────────────────────────────
-    kw_hits = {r["id"]: r for r in _keyword_search(message)}
+    # ── 阶段2：违规触发词匹配 ──────────────────────────────
+    kw_matches = _find_trigger_matches(message)
 
-    # ── 阶段3：合并评分 ───────────────────────────────────
-    # 关键词仅用于给embedding结果加分，不独立判定
-    # 综合距离 = embedding距离 - 关键词加分（距离越小越好，加分让距离更小）
-    combined = []
+    # 关键词命中：如果embedding已召回同规则，跳过（避免重复）
+    emb_rule_ids = {h["id"] for h in emb_hits}
+    kw_supplement = []
+    for kw in kw_matches:
+        if kw["id"] not in emb_rule_ids:
+            kw_supplement.append({
+                "id": kw["id"],
+                "level": kw["level"],
+                "category": kw["category"],
+                "standard": kw["standard"],
+                "violation": kw["violation"],
+                "penalty": kw["penalty"],
+                "distance": DISTANCE_THRESHOLD,  # 虚拟距离=阈值
+                "emb_distance": None,
+                "keyword_score": 1.0,
+                "hit_type": "触发词命中",
+                "matched_keywords": kw["matched_words"],
+            })
 
-    for rule_id, emb in emb_hits.items():
-        kw = kw_hits.get(rule_id, {})
-        emb_dist = emb.get("emb_distance", 2.0)
-        kw_score = kw.get("keyword_score", 0.0)
+    # ── 阶段3：合并 + 筛选 ───────────────────────────────
+    # 对embedding命中：如果有同规则的触发词命中，标注
+    for hit in emb_hits:
+        for kw in kw_matches:
+            if hit["id"] == kw["id"]:
+                hit["keyword_score"] = 1.0
+                hit["hit_type"] = "语义+触发词"
+                hit["matched_keywords"] = kw["matched_words"]
+                hit["distance"] = round(max(0.0, hit["emb_distance"] - 0.15), 4)
+                break
 
-        # 关键词加分：最多减0.25的距离
-        combined_dist = max(0.0, emb_dist - kw_score * 0.25)
-
-        item = {
-            "id": rule_id,
-            "level": emb.get("level", ""),
-            "category": emb.get("category", ""),
-            "standard": emb.get("standard", ""),
-            "violation": emb.get("violation", ""),
-            "penalty": emb.get("penalty", ""),
-            "distance": round(combined_dist, 4),
-            "emb_distance": round(emb_dist, 4),
-            "keyword_score": round(kw_score, 4),
-        }
-        if kw.get("overlap_words"):
-            item["matched_keywords"] = kw["overlap_words"]
-        combined.append(item)
-
-    # 关键词独有命中（embedding未召回）的补充
-    # 门槛高+虚拟距离高，避免通用词触发误判
-    for rule_id, kw in kw_hits.items():
-        if rule_id in emb_hits:
-            continue
-        overlap_count = len(kw.get("overlap_words", []))
-        kw_score = kw.get("keyword_score", 0.0)
-        if overlap_count >= 3 and kw_score >= 0.9:
-            combined_dist = 0.55  # 虚拟距离，仅略低于阈值
-        else:
-            continue
-
-        item = {
-            "id": rule_id,
-            "level": kw.get("level", ""),
-            "category": kw.get("category", ""),
-            "standard": kw.get("standard", ""),
-            "violation": kw.get("violation", ""),
-            "penalty": kw.get("penalty", ""),
-            "distance": round(combined_dist, 4),
-            "emb_distance": None,
-            "keyword_score": round(kw_score, 4),
-        }
-        if kw.get("overlap_words"):
-            item["matched_keywords"] = kw["overlap_words"]
-        combined.append(item)
-
-    # 按距离升序（越小越相似）
+    combined = emb_hits + kw_supplement
     combined.sort(key=lambda x: x["distance"])
 
-    # ── 阶段4：筛选 ──────────────────────────────────────
     violations = [r for r in combined if r["distance"] <= DISTANCE_THRESHOLD]
 
     is_violation = len(violations) > 0

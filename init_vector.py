@@ -14,7 +14,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 
 from config import (
-    BASE_URL, API_KEY, EMBEDDING_MODEL, VLM_MODEL,
+    BASE_URL, API_KEY, EMBEDDING_MODEL, EMBEDDING_DIMENSIONS, VLM_MODEL,
     PERSIST_DIR, validate_config,
 )
 
@@ -153,7 +153,7 @@ def _rules_to_documents(rules: list[dict], source: str) -> list[Document]:
 
     documents = []
     for i, rule in enumerate(rules):
-        # 以违规描述作为主内容，标准关键词作为前缀增强匹配
+        # 以违规描述为主内容，标准关键词作为前缀增强匹配
         violation_text = rule.get("violation", "").strip()
         if not violation_text:
             continue
@@ -330,6 +330,7 @@ def init_vector_db(file_path: str):
 
     embeddings = OpenAIEmbeddings(
         model=EMBEDDING_MODEL,
+        dimensions=EMBEDDING_DIMENSIONS,
         api_key=API_KEY,
         base_url=BASE_URL
     )

@@ -4,30 +4,30 @@
     "message": "你放心报吧，我们这边包过的，历年通过率很高，报了基本都能过",
     "category": "明确违规",
     "is_violation": true,
-    "expected_rule_id": 35,
+    "expected_rule_id": 36,
     "expected_level": "C类",
     "violation_type": "过度承诺",
-    "note": "使用「包过」极限词"
+    "note": "使用「包过」极限词，匹配ID=36包过保证规则"
   },
   {
     "id": 2,
     "message": "这个考试100%能通过，我保证你一次过，不过我退你钱",
     "category": "明确违规",
     "is_violation": true,
-    "expected_rule_id": 35,
+    "expected_rule_id": 36,
     "expected_level": "C类",
     "violation_type": "过度承诺",
-    "note": "100%保证通过+承诺退款"
+    "note": "100%保证通过+承诺退款，匹配ID=36包过保证规则"
   },
   {
     "id": 3,
     "message": "考完试拿到证以后可以挂靠出去，一年挂靠费能有3到5万",
     "category": "明确违规",
     "is_violation": true,
-    "expected_rule_id": 39,
+    "expected_rule_id": 40,
     "expected_level": "C类",
     "violation_type": "过度承诺",
-    "note": "宣传挂靠收入"
+    "note": "宣传挂靠收入，匹配ID=40证书功能规则"
   },
   {
     "id": 4,
@@ -44,24 +44,24 @@
     "message": "不想学了随时可以退款，跟淘宝一样7天无理由退货，你不用担心",
     "category": "明确违规",
     "is_violation": true,
-    "expected_rule_id": 47,
+    "expected_rule_id": 48,
     "expected_level": "C类",
     "violation_type": "过度承诺",
-    "note": "承诺随时退款+7天无理由"
+    "note": "承诺随时退款+7天无理由，匹配ID=48退款问题规则"
   },
   {
     "id": 6,
     "message": "我们是对啊最大的平台，行业里第一的，其他家都是小作坊",
     "category": "明确违规",
     "is_violation": true,
-    "expected_rule_id": 43,
+    "expected_rule_id": 44,
     "expected_level": "C类",
     "violation_type": "过度承诺",
-    "note": "宣称最大、第一"
+    "note": "宣称最大、第一，匹配ID=44虚假宣传规则"
   },
   {
     "id": 7,
-    "message": "你帮我办理退费吧，不要走公司流程了，你直接转我，我帮你操作",
+    "message": "你不用走公司流程退费，直接把钱转给我，我来帮你操作就行",
     "category": "明确违规",
     "is_violation": true,
     "expected_rule_id": 20,
@@ -84,10 +84,10 @@
     "message": "我们这边包就业的，学完直接安排工作，保底薪资8000起",
     "category": "明确违规",
     "is_violation": true,
-    "expected_rule_id": 36,
+    "expected_rule_id": 37,
     "expected_level": "C类",
     "violation_type": "过度承诺",
-    "note": "承诺包就业+保底薪资"
+    "note": "承诺包就业+保底薪资，匹配ID=37就业班级薪资规则"
   },
   {
     "id": 10,
